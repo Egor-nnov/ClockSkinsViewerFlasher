@@ -1,4 +1,5 @@
 #include <QFileDialog>
+#include <QMessageBox>
 
 #include "dialog.h"
 #include "ui_dialog.h"
@@ -45,48 +46,73 @@ void Dialog::on_pushButton_selectFile_clicked()
     QString FileName = QFileDialog::getOpenFileName(0, "Открыть файл", "", "*.bin");
     datafile.setFileName(FileName);
 
-    if (!datafile.open(QIODevice::ReadOnly))
+    if ( !FileName.isEmpty())
     {
-            //qDebug () << "Ошибка открытия дпя записи";
+        if (!datafile.open(QIODevice::ReadOnly))
+        {
+                //qDebug () << "Ошибка открытия дпя записи";
+        }
+        ui->lineEdit_selectFile->setText(FileName);
+
+        clock_timer.stop();
+
+        FramesData.clear();
+        FramesData = datafile.readAll();
+
+        datafile.close();
+
+        Size = FramesData.size() / (64800 * 30); // [15/17] anim * 30 fps * 64800 bytes
+
+        if (!((Size == 15) || (Size == 17)))
+        {
+            FramesData.clear();
+            QMessageBox::critical(0, "Ошибка!", "Некорректный размер файла", QMessageBox::Ok);
+            return;
+        }
+
+        // Set initial time
+        QTime local_time = QTime::currentTime();
+
+        int hoursTen = local_time.hour() / 10;
+        int hoursUnit = local_time.hour() % 10;
+
+        int minTen = local_time.minute() / 10;
+        int minUnit = local_time.minute() % 10;
+
+        int secUnit = local_time.second() % 10;
+        int secTen = local_time.second() / 10 ;
+
+        LoadFrame(hoursTen * 30, 0);
+        LoadFrame(hoursUnit * 30, 1);
+        LoadFrame(13 * 30, 2);  //dots
+        LoadFrame(minTen * 30, 3);
+        LoadFrame(minUnit * 30, 4);
+        if (Size == 15)
+        {
+            LoadFrame(14 * 30, 5);  //dots short
+        }
+        else
+        {
+            LoadFrame(15 * 30, 5);  //dots long
+        }
+        LoadFrame(secTen * 30, 6);
+        LoadFrame(secUnit * 30, 7);
+
+        // Start animation
+        clock_timer.start(15);
     }
-    ui->lineEdit_selectFile->setText(FileName);
+    else
+    {
+        QMessageBox::critical(0, "Ошибка!", "Файл не выбран", QMessageBox::Ok);
+    }
 
-    FramesData.clear();
-    FramesData = datafile.readAll();
 
-    datafile.close();
-
-    //135 x 240 x 2 = 64800 один кадр
-    // 64800 = 8100 x 8 частей
-    int Size = FramesData.size() / 64800 - 1;
-
-    // Set initial time
-    QTime local_time = QTime::currentTime();
-
-    int hoursTen = local_time.hour() / 10;
-    int hoursUnit = local_time.hour() % 10;
-
-    int minTen = local_time.minute() / 10;
-    int minUnit = local_time.minute() % 10;
-
-    int secUnit = local_time.second() % 10;
-    int secTen = local_time.second() / 10 ;
-
-    LoadFrame(hoursTen * 30, 0);
-    LoadFrame(hoursUnit * 30, 1);
-    LoadFrame(14 * 30, 2);
-    LoadFrame(minTen * 30, 3);
-    LoadFrame(minUnit * 30, 4);
-    LoadFrame(13 * 30, 5);
-    LoadFrame(secTen * 30, 6);
-    LoadFrame(secUnit * 30, 7);
-
-    // Start animation
-    clock_timer.start(15);
 }
 //============================================================================================================================================
 void  Dialog::LoadFrame(int index, int label)
 {
+    // 135 pix x 240 pix x 2 byte = 64800 bytes один кадр
+
     for(int j = 0; j < 240; j++)
     {
         for (int i = 0; i < 135; i++)
@@ -118,8 +144,16 @@ void Dialog::slotUpdateDateTime()
         int secUnit = local_time.second() % 10;
         LoadFrame(secUnit * 30 + mstime, 7); // Sec0
 
-        LoadFrame(14 * 30 + mstime, 2); // dots1
-        LoadFrame(13 * 30 + mstime, 5); // dots2
+        if (Size == 15)
+        {
+            LoadFrame(13 * 30 + mstime, 2); // dots
+            LoadFrame(14 * 30 + mstime, 5); // dots
+        }
+        else
+        {
+            LoadFrame(13 * 30 + (local_time.second() % 2) * 30 + mstime, 2); // dots
+            LoadFrame(15 * 30 + (local_time.second() % 2) * 30 + mstime, 5); // dots
+        }
 
         if(secUnit == 9)
         {

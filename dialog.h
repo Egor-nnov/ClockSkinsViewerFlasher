@@ -33,6 +33,7 @@ private:
 
     QFile datafile;
     QByteArray FramesData;
+    int Size;
 
     void LoadFrame(int index, int label);
 
