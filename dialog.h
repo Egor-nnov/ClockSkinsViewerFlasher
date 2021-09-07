@@ -6,6 +6,10 @@
 #include <QTimer>
 #include <QTime>
 
+#include <QtSerialPort/QSerialPortInfo>
+#include <QtSerialPort/QSerialPort>
+
+#include<windows.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Dialog; }
@@ -24,6 +28,10 @@ private slots:
     void on_pushButton_selectFile_clicked();
     void slotUpdateDateTime();
 
+    void on_pushButton_Flash_clicked();
+
+    void on_comboBox_page_currentIndexChanged(int index);
+
 private:
     Ui::Dialog *ui;
     QImage *frame;
@@ -35,7 +43,24 @@ private:
     QByteArray FramesData;
     int Size;
 
+    HANDLE hComm;
+    bool OpenSerialPort(int baud);
+    int m_waitTimeout = 30;
+    int m_readTimeout = 10;
+    int m_wtiteTimeout = 10;
+    char *buf_out;
+    char *buf_in;
+    DWORD         bc;
+
     void LoadFrame(int index, int label);
+
+    void FlashErase();
+    void FlashConfigData();
+    void FlashData();
+    int anim_page = 0;
+
+    QByteArray Ok_str{"\x4F\x6B"};
+    QByteArray ID_str{"\x21\xAA\xEF"};
 
 protected:
     virtual void paintEvent(QPaintEvent *event);
