@@ -43,6 +43,9 @@ Dialog::Dialog(QWidget *parent) : QDialog(parent), ui(new Ui::Dialog)
 
 
    connect(&clock_timer, SIGNAL(timeout()), SLOT(slotUpdateDateTime()));
+
+   m_proc = new QProcess(this);
+   connect(m_proc, SIGNAL(readyReadStandardOutput()), SLOT(slotDataOnStdout()));
 }
 
 //============================================================================================================================================
@@ -248,6 +251,31 @@ void Dialog::slotUpdateDateTime()
 void Dialog::on_pushButton_Flash_clicked()
 {
     clock_timer.stop();
+    ui->pushButton_Flash->setVisible(false);
+    ui->pushButton_selectFile->setVisible(false);
+    ui->comboBox_page->setVisible(false);
+    ui->comboBox_SerialPort->setVisible(false);
+    ui->label_SerialPort->setVisible(false);
+
+
+    ui->textEdit_Log->append(QTime::currentTime().toString()+" Start upload sketch");
+    ui->textEdit_Log->update();
+    QApplication::processEvents();
+
+    QString strCommand = "esptool -cp " + ui->comboBox_SerialPort->currentText() + " -bf 26 -cd nodemcu -cb 460800 -cf TheLCDclock_esp8285_loader.ino.esp8285.dat";
+    m_proc->start(strCommand);
+    m_proc->waitForStarted();
+    while(m_proc->state() == QProcess::Running)
+    {
+        QApplication::processEvents();
+        Sleep(500);
+        QApplication::processEvents();
+    }
+    ui->textEdit_Log->append(QTime::currentTime().toString()+" Sketch uploaded. Wait 10 sec for reloading...");
+    ui->textEdit_Log->update();
+    QApplication::processEvents();
+
+    Sleep(10000);
 
     if( OpenSerialPort(921600) )
     {
@@ -257,6 +285,31 @@ void Dialog::on_pushButton_Flash_clicked()
 
         CloseHandle(hComm);//Closing the Serial Port
     }
+    else
+    {
+        if (hComm)
+        {
+            CloseHandle(hComm);//Closing the Serial Port
+        }
+        ui->textEdit_Log->append(QTime::currentTime().toString()+" Flashing error");
+        ui->textEdit_Log->update();
+        QApplication::processEvents();
+    }
+    Sleep(500);
+
+    ui->textEdit_Log->append(QTime::currentTime().toString()+" Start upload sketch");
+    ui->textEdit_Log->update();
+    strCommand = "esptool -cp " + ui->comboBox_SerialPort->currentText() + " -bf 26 -cd nodemcu -cb 460800 -cf TheLCDclock_esp8285.ino.esp8285.dat";
+    m_proc->start(strCommand);
+    m_proc->waitForStarted();
+    while(m_proc->state() == QProcess::Running)
+    {
+        QApplication::processEvents();
+        Sleep(500);
+        QApplication::processEvents();
+    }
+
+    ui->pushButton_selectFile->setVisible(true);
 }
 
 //============================================================================================================================================
@@ -705,3 +758,11 @@ void Dialog::on_comboBox_page_currentIndexChanged(int index)
 {
     anim_page = index;
 }
+
+//============================================================================================================================================
+void  Dialog::slotDataOnStdout()
+{
+    ui->textEdit_Log->append(QTime::currentTime().toString() + " " + m_proc->readAllStandardOutput());
+}
+
+//============================================================================================================================================

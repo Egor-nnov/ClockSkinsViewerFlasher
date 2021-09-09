@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QTimer>
 #include <QTime>
+#include <QProcess>
 
 #include <QtSerialPort/QSerialPortInfo>
 #include <QtSerialPort/QSerialPort>
@@ -31,6 +32,8 @@ private slots:
     void on_pushButton_Flash_clicked();
 
     void on_comboBox_page_currentIndexChanged(int index);
+
+    void slotDataOnStdout();
 
 private:
     Ui::Dialog *ui;
@@ -61,6 +64,8 @@ private:
 
     QByteArray Ok_str{"\x4F\x6B"};
     QByteArray ID_str{"\x21\xAA\xEF"};
+
+    QProcess* m_proc;
 
 protected:
     virtual void paintEvent(QPaintEvent *event);
