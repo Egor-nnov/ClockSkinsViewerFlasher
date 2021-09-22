@@ -258,7 +258,7 @@ void Dialog::on_pushButton_Flash_clicked()
     ui->label_SerialPort->setVisible(false);
 
 
-    ui->textEdit_Log->append(QTime::currentTime().toString()+" Start upload sketch");
+    ui->textEdit_Log->append(QTime::currentTime().toString() + " Start upload sketch");
     ui->textEdit_Log->update();
     QApplication::processEvents();
 
@@ -271,11 +271,11 @@ void Dialog::on_pushButton_Flash_clicked()
         Sleep(500);
         QApplication::processEvents();
     }
-    ui->textEdit_Log->append(QTime::currentTime().toString()+" Sketch uploaded. Wait 10 sec for reloading...");
+    ui->textEdit_Log->append(QTime::currentTime().toString() + " Sketch uploaded. Wait 11 sec for reloading...");
     ui->textEdit_Log->update();
     QApplication::processEvents();
 
-    Sleep(10000);
+    Sleep(11000);
 
     if( OpenSerialPort(921600) )
     {
@@ -289,7 +289,7 @@ void Dialog::on_pushButton_Flash_clicked()
     {
         if (hComm)
         {
-            CloseHandle(hComm);//Closing the Serial Port
+            CloseHandle(hComm); //Closing the Serial Port
         }
         ui->textEdit_Log->append(QTime::currentTime().toString()+" Flashing error");
         ui->textEdit_Log->update();
@@ -322,12 +322,12 @@ bool Dialog::OpenSerialPort(int baud)
 
    if (hComm == INVALID_HANDLE_VALUE)
    {
-       ui->textEdit_Log->append(QTime::currentTime().toString()+" Error open serial port");
+       ui->textEdit_Log->append(QTime::currentTime().toString() + " Error open serial port");
        return false;
    }
    else
    {
-       ui->textEdit_Log->append(QTime::currentTime().toString()+" OK! open serial port");
+       ui->textEdit_Log->append(QTime::currentTime().toString() + " OK! open serial port");
    }
 
    DCB ComDCM;
@@ -360,7 +360,7 @@ bool Dialog::OpenSerialPort(int baud)
    {
        CloseHandle(hComm);
        hComm = INVALID_HANDLE_VALUE;
-       ui->textEdit_Log->append(QTime::currentTime().toString()+" Error SETUP serial port");
+       ui->textEdit_Log->append(QTime::currentTime().toString() + " Error SETUP serial port");
        return false;
    }
 
@@ -417,7 +417,7 @@ void Dialog::FlashData()
 
     if (!datafile.open(QIODevice::ReadOnly))
     {
-        ui->textEdit_Log->append(QTime::currentTime().toString()+" Ошибка открытия файла");
+        ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка открытия файла");
         return;
     }
 
@@ -426,7 +426,7 @@ void Dialog::FlashData()
     ui->progressBar->setMinimum(0);
     ui->progressBar->setMaximum(17 * 30 * 8 - 1);
     ui->progressBar->setValue(0);
-    ui->textEdit_Log->append(QTime::currentTime().toString()+" Старт прошивки скина");
+    ui->textEdit_Log->append(QTime::currentTime().toString() + " Старт прошивки скина");
 
     for (int frame = 0; frame < 17 * 30 * 8; frame++)
     {
@@ -439,7 +439,6 @@ void Dialog::FlashData()
 
         ui->progressBar->setValue(frame);
         QApplication::processEvents();
-
 
         for (int page = 0; page < 4; page++)
         {
@@ -455,14 +454,6 @@ void Dialog::FlashData()
                 {
                    requestData[i] = FramesData[page * 2048 + pj * 128 + i - 3];
                 }
-/*
-                val = "";
-                for (int j = 0; j < requestData.size(); j++)
-                {
-                   val +=  " " + QString("%1").arg(QString::number(uchar(requestData[j]),16).rightJustified(2,'0'));
-                }
-                qDebug()<<"Записать "<<requestData.size() << val.toUpper();
-*/
 
                 WriteFile(hComm, buf_out, requestData.size(), &bc, NULL);
 
@@ -475,22 +466,26 @@ void Dialog::FlashData()
 
                     if ((bc != 2) || (Ok_str != responseData))
                     {
-                        ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения загрузки данных");
+                        if (fault_cnt < 5)
+                        {
+                            pj--;
+                            fault_cnt++;
+                            continue;
+                        }
+                        else
+                        {
+                            ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения загрузки данных");
+                            fault_cnt = 0;
+                        }
                     }
-/*
-                    val = "";
-                    for (int j = 0; j < responseData.size(); j++)
+                    else
                     {
-                       if (j%16 ==0) val += "\n";
-                       val +=  " " + QString("%1").arg(QString::number(uchar(responseData[j]),16).rightJustified(2,'0'));
+                        fault_cnt = 0;
                     }
-                    qDebug().noquote()<<"Результат " << responseData.size() << val.toUpper();
-*/
                 }
                 else
                 {
-                    ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут записи запроса");
-
+                    ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут загрузки данных");
                 }
             }
 
@@ -499,14 +494,6 @@ void Dialog::FlashData()
             requestData[1] = (((frame * 4 + page + 1) >> 8) & 0xFF) + anim_page * 0x40;
             requestData[2] = (frame * 4 + page + 1) & 0xFF;
             buf_out = requestData.data();
-/*
-            val = "";
-            for (int j = 0; j < requestData.size(); j++)
-            {
-                val +=  " " + QString("%1").arg(QString::number(uchar(requestData[j]),16).rightJustified(2,'0'));
-            }
-            qDebug()<<"Прошить"<<requestData.size() << val.toUpper();
-*/
 
             WriteFile(hComm, buf_out, requestData.size(), &bc, NULL);
 
@@ -519,23 +506,30 @@ void Dialog::FlashData()
 
                 if ((bc != 2) || (Ok_str != responseData))
                 {
-                    ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения загрузки данных");
+                    if (fault_cnt < 5)
+                    {
+                        page--;
+                        fault_cnt++;
+                        continue;
+                    }
+                    else
+                    {
+                        ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения команды записи");
+                        fault_cnt = 0;
+                    }
                 }
-/*
-                val = "";
-                for (int j = 0; j < responseData.size(); j++)
+                else
                 {
-                    val +=  " " + QString("%1").arg(QString::number(uchar(responseData[j]),16).rightJustified(2,'0'));
+                    fault_cnt = 0;
                 }
-                qDebug()<<"Результат " << responseData.size() << val.toUpper();
-*/
             }
             else
             {
-                ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут записи запроса");
+                ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут команды записи");
             }
         }
     }
+    ui->textEdit_Log->append(QTime::currentTime().toString() + " Прошивка скина завершена");
 
     QApplication::processEvents();
 
@@ -594,6 +588,8 @@ void Dialog::FlashConfigData()
    requestData.resize(131);
    buf_out = requestData.data();
 
+   ui->textEdit_Log->append(QTime::currentTime().toString() + " Старт прошивки конфигурационных данных");
+
    for (int pj = 0; pj < 4; pj++)
    {
        requestData[0] = 0x02;
@@ -604,14 +600,7 @@ void Dialog::FlashConfigData()
        {
            requestData[i] = header_data[pj * 128 + i - 3];
        }
-/*
-       val = "";
-       for (int j = 0; j < requestData.size(); j++)
-       {
-           val +=  " " + QString("%1").arg(QString::number(uchar(requestData[j]),16).rightJustified(2,'0'));
-       }
-       qDebug()<<"Записать "<<requestData.size() << val.toUpper();
-*/
+
        WriteFile(hComm, buf_out, requestData.size(), &bc, NULL);
 
        if (bc == 131)
@@ -623,21 +612,26 @@ void Dialog::FlashConfigData()
 
            if ((bc != 2) || (Ok_str != responseData))
            {
-               ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения загрузки данных");
+               if (fault_cnt < 5)
+               {
+                   pj--;
+                   fault_cnt++;
+                   continue;
+               }
+               else
+               {
+                   ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения загрузки конфигурационных данных");
+                   fault_cnt = 0;
+               }
            }
-/*
-           val = "";
-           for (int j = 0; j < responseData.size(); j++)
+           else
            {
-               if (j%16 ==0) val += "\n";
-               val +=  " " + QString("%1").arg(QString::number(uchar(responseData[j]),16).rightJustified(2,'0'));
+               fault_cnt = 0;
            }
-           qDebug().noquote()<<"Результат " << responseData.size() << val.toUpper();
-*/
        }
        else
        {
-            ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут записи запроса");
+            ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут загрузки конфигурационных данных");
        }
    }
 
@@ -648,14 +642,6 @@ void Dialog::FlashConfigData()
    requestData[0] = 0x10;
    requestData[1] = 0x00 + anim_page * 0x40;
    requestData[2] = 0x00;
-/*
-   val = "";
-   for (int j = 0; j < requestData.size(); j++)
-   {
-       val +=  " " + QString("%1").arg(QString::number(uchar(requestData[j]),16).rightJustified(2,'0'));
-   }
-   qDebug()<<"Прошить"<<requestData.size() << val.toUpper();
-*/
 
    WriteFile(hComm, buf_out, requestData.size(), &bc, NULL);
 
@@ -668,22 +654,15 @@ void Dialog::FlashConfigData()
 
        if ((bc != 2) || (Ok_str != responseData))
        {
-           ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения загрузки данных");
+           ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения команды записи");
        }
-/*
-      val = "";
-      for (int j = 0; j < responseData.size(); j++)
-      {
-          val +=  " " + QString("%1").arg(QString::number(uchar(responseData[j]),16).rightJustified(2,'0'));
-      }
-      qDebug()<<"Результат " << responseData.size() << val.toUpper();
-*/
    }
    else
    {
-       ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут записи запроса");
+       ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут команды записи");
    }
 
+   ui->textEdit_Log->append(QTime::currentTime().toString() + " Прошивка конфигурационных данных завершена");
 }
 
 //============================================================================================================================================
@@ -694,6 +673,7 @@ void Dialog::FlashErase()
     QByteArray responseData;
     //--------------------------------
 
+    ui->textEdit_Log->append(QTime::currentTime().toString() + " Старт очистки");
 
     {
         requestData.resize(3);
@@ -712,14 +692,7 @@ void Dialog::FlashErase()
 
             ui->progressBar->setValue(pj);
             QApplication::processEvents();
-    /*//
-            QString val = "";
-            for (int j = 0; j < requestData.size(); j++)
-            {
-                val +=  " " + QString("%1").arg(QString::number(uchar(requestData[j]),16).rightJustified(2,'0'));
-            }
-            qDebug() << "Стереть блок "  << pj << requestData.size() << val.toUpper();
-    *///
+
             WriteFile(hComm, buf_out, requestData.size(), &bc, NULL);
 
             if (bc == 3)
@@ -731,26 +704,33 @@ void Dialog::FlashErase()
 
                 if ((bc != 2) || (Ok_str != responseData))
                 {
-                    ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения загрузки данных");
-
-/*
-                    QString val = "";
-                    for (int j = 0; j < responseData.size(); j++)
+                    if (fault_cnt < 3)
                     {
-                        val +=  " " + QString("%1").arg(QString::number(uchar(responseData[j]),16).rightJustified(2,'0'));
+                        pj--;
+                        fault_cnt++;
+                        continue;
                     }
-                    qDebug()<<"Результат " << responseData.size() << val.toUpper();
-*/
+                    else
+                    {
+                        ui->textEdit_Log->append(QTime::currentTime().toString() + " Ошибка подтверждения команды очистки");
+                        fault_cnt = 0;
+                    }
+                }
+                else
+                {
+                    fault_cnt = 0;
                 }
             }
             else
             {
-                ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут записи запроса");
+                ui->textEdit_Log->append(QTime::currentTime().toString() + " Таймаут команды очистки");
             }
         }
 
         ui->progressBar->setVisible(false);
     }
+
+    ui->textEdit_Log->append(QTime::currentTime().toString() + " Очистка завершена");
 }
 
 //============================================================================================================================================

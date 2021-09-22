@@ -54,6 +54,7 @@ private:
     char *buf_out;
     char *buf_in;
     DWORD         bc;
+    unsigned char fault_cnt = 0;
 
     void LoadFrame(int index, int label);
 
