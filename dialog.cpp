@@ -6,6 +6,8 @@
 #include "ui_dialog.h"
 
 //============================================================================================================================================
+// Конструктор
+//============================================================================================================================================
 Dialog::Dialog(QWidget *parent) : QDialog(parent), ui(new Ui::Dialog)
 {
     ui->setupUi(this);
@@ -40,6 +42,7 @@ Dialog::Dialog(QWidget *parent) : QDialog(parent), ui(new Ui::Dialog)
     QStringList ComboSimvols;
     ComboSimvols << "anim_Skin_1" << "anim_Skin_2" << "anim_Skin_3";
     ui->comboBox_page->addItems(ComboSimvols);
+    ui->comboBox_page->setCurrentIndex(2);
 
 
    connect(&clock_timer, SIGNAL(timeout()), SLOT(slotUpdateDateTime()));
@@ -49,6 +52,8 @@ Dialog::Dialog(QWidget *parent) : QDialog(parent), ui(new Ui::Dialog)
 }
 
 //============================================================================================================================================
+// Деструктор
+//============================================================================================================================================
 Dialog::~Dialog()
 {
     delete frame;
@@ -56,6 +61,8 @@ Dialog::~Dialog()
     delete ui;
 }
 
+//============================================================================================================================================
+// Отрисовка
 //============================================================================================================================================
 void Dialog::paintEvent(QPaintEvent *event)
 {
@@ -70,7 +77,9 @@ void Dialog::paintEvent(QPaintEvent *event)
 }
 
 //============================================================================================================================================
-void Dialog::on_pushButton_selectFile_clicked()
+// Выбор файла скина
+//============================================================================================================================================
+void Dialog::on_pushButton_selectSkinFile_clicked()
 {
     QString FileName = QFileDialog::getOpenFileName(0, "Открыть файл", "", "*.bin");
     datafile.setFileName(FileName);
@@ -82,7 +91,7 @@ void Dialog::on_pushButton_selectFile_clicked()
             ui->textEdit_Log->append(QTime::currentTime().toString()+" Ошибка открытия");
             return;
         }
-        ui->lineEdit_selectFile->setText(FileName);
+        ui->lineEdit_selectSkinFile->setText(FileName);
 
         clock_timer.stop();
 
@@ -147,12 +156,14 @@ void Dialog::on_pushButton_selectFile_clicked()
         ui->pushButton_Flash->setVisible(false);
         ui->comboBox_page->setVisible(false);
 
-        ui->lineEdit_selectFile->clear();
+        ui->lineEdit_selectSkinFile->clear();
 
         FramesData.clear();
         clock_timer.stop();
     }
 }
+
+//============================================================================================================================================
 //============================================================================================================================================
 void  Dialog::LoadFrame(int index, int label)
 {
@@ -176,6 +187,7 @@ void  Dialog::LoadFrame(int index, int label)
     }
 }
 
+//============================================================================================================================================
 //============================================================================================================================================
 void Dialog::slotUpdateDateTime()
 {
@@ -248,58 +260,113 @@ void Dialog::slotUpdateDateTime()
 }
 
 //============================================================================================================================================
+//============================================================================================================================================
 void Dialog::on_pushButton_Flash_clicked()
 {
     clock_timer.stop();
-    ui->pushButton_Flash->setVisible(false);
-    ui->pushButton_selectFile->setVisible(false);
-    ui->comboBox_page->setVisible(false);
-    ui->comboBox_SerialPort->setVisible(false);
-    ui->label_SerialPort->setVisible(false);
 
+    ui->pushButton_Flash->setEnabled(false);
+    ui->pushButton_selectSkinFile->setEnabled(false);
+    ui->pushButton_selectFirmwareFile->setEnabled(false);
+    ui->pushButton_selectFSFile->setEnabled(false);
+    ui->comboBox_page->setEnabled(false);
+    ui->comboBox_SerialPort->setEnabled(false);
+    ui->label_SerialPort->setEnabled(false);
 
-    ui->textEdit_Log->append(QTime::currentTime().toString() + " Start upload sketch");
-    ui->textEdit_Log->update();
-    QApplication::processEvents();
-
-    QString strCommand = "esptool -cp " + ui->comboBox_SerialPort->currentText() + " -bf 26 -cd nodemcu -cb 460800 -cf TheLCDclock_esp8285_loader.ino.esp8285.dat";
-    m_proc->start(strCommand);
-    m_proc->waitForStarted();
-    while(m_proc->state() == QProcess::Running)
-    {
+    if (!ui->lineEdit_selectSkinFile->text().isEmpty())
+    {   // есть смена скина
+        ui->textEdit_Log->append(QTime::currentTime().toString() + " Start upload loader sketch");
+        ui->textEdit_Log->update();
         QApplication::processEvents();
-        Sleep(500);
+
+        QString strCommand = "esptool -cp " + ui->comboBox_SerialPort->currentText() + " -bf 26 -cd nodemcu -cb 460800 -cf loader.dat";
+        m_proc->start(strCommand);
+        m_proc->waitForStarted();
+        while(m_proc->state() == QProcess::Running)
+        {
+            QApplication::processEvents();
+            Sleep(500);
+            QApplication::processEvents();
+        }
+        ui->textEdit_Log->append(QTime::currentTime().toString() + " Loader sketch uploaded. Wait 12 sec for rebooting...");
+        ui->textEdit_Log->update();
         QApplication::processEvents();
+
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+        Sleep(1000);
+        QApplication::processEvents();
+
+        if( OpenSerialPort(921600) )
+        {
+            FlashErase();
+            FlashConfigData();
+            FlashData();
+
+            CloseHandle(hComm);//Closing the Serial Port
+        }
+        else
+        {
+            if (hComm)
+            {
+                CloseHandle(hComm); //Closing the Serial Port
+            }
+            ui->textEdit_Log->append(QTime::currentTime().toString() + " Flashing error");
+            ui->textEdit_Log->update();
+            QApplication::processEvents();
+        }
+        Sleep(1500);
     }
-    ui->textEdit_Log->append(QTime::currentTime().toString() + " Sketch uploaded. Wait 11 sec for reloading...");
-    ui->textEdit_Log->update();
-    QApplication::processEvents();
 
-    Sleep(11000);
-
-    if( OpenSerialPort(921600) )
+    if (!ui->lineEdit_selectFSFile->text().isEmpty())
     {
-        FlashErase();
-        FlashConfigData();
-        FlashData();
+        ui->textEdit_Log->append(QTime::currentTime().toString() + " Start upload FS " + QFileInfo(ui->lineEdit_selectFSFile->text()).fileName());
+        ui->textEdit_Log->update();
+        QString strCommand = "esptool -cp " + ui->comboBox_SerialPort->currentText() + " -bf 26 -cd nodemcu -cb 460800 -ca 0x000db000 -cf " + ui->lineEdit_selectFSFile->text();
+        m_proc->start(strCommand);
+        m_proc->waitForStarted();
+        while(m_proc->state() == QProcess::Running)
+        {
+            QApplication::processEvents();
+            Sleep(500);
+            QApplication::processEvents();
+        }
+    }
 
-        CloseHandle(hComm);//Closing the Serial Port
+
+    ui->textEdit_Log->append(QTime::currentTime().toString()+" Start upload firmware");
+    ui->textEdit_Log->update();
+
+    QString strCommand;
+    if(!ui->lineEdit_selectFirmwareFile->text().isEmpty())
+    {
+        strCommand = "esptool -cp " + ui->comboBox_SerialPort->currentText() + " -bf 26 -cd nodemcu -cb 460800 -cf " + ui->lineEdit_selectFirmwareFile->text();
     }
     else
     {
-        if (hComm)
-        {
-            CloseHandle(hComm); //Closing the Serial Port
-        }
-        ui->textEdit_Log->append(QTime::currentTime().toString()+" Flashing error");
-        ui->textEdit_Log->update();
-        QApplication::processEvents();
+        strCommand = "esptool -cp " + ui->comboBox_SerialPort->currentText() + " -bf 26 -cd nodemcu -cb 460800 -cf firmware.bin";
     }
-    Sleep(500);
 
-    ui->textEdit_Log->append(QTime::currentTime().toString()+" Start upload sketch");
-    ui->textEdit_Log->update();
-    strCommand = "esptool -cp " + ui->comboBox_SerialPort->currentText() + " -bf 26 -cd nodemcu -cb 460800 -cf TheLCDclock_esp8285.ino.esp8285.dat";
     m_proc->start(strCommand);
     m_proc->waitForStarted();
     while(m_proc->state() == QProcess::Running)
@@ -309,7 +376,14 @@ void Dialog::on_pushButton_Flash_clicked()
         QApplication::processEvents();
     }
 
-    ui->pushButton_selectFile->setVisible(true);
+    ui->pushButton_Flash->setEnabled(true);
+    ui->pushButton_selectSkinFile->setEnabled(true);
+    ui->pushButton_selectFirmwareFile->setEnabled(true);
+    ui->pushButton_selectFSFile->setEnabled(true);
+    ui->comboBox_page->setEnabled(true);
+    ui->comboBox_SerialPort->setEnabled(true);
+    ui->label_SerialPort->setEnabled(true);
+
 }
 
 //============================================================================================================================================
@@ -406,6 +480,7 @@ bool Dialog::OpenSerialPort(int baud)
        return false;
    }
 }
+
 //============================================================================================================================================
 // Запись
 //============================================================================================================================================
@@ -666,6 +741,7 @@ void Dialog::FlashConfigData()
 }
 
 //============================================================================================================================================
+// Стирание флешки перед записью
 //============================================================================================================================================
 void Dialog::FlashErase()
 {
@@ -734,15 +810,62 @@ void Dialog::FlashErase()
 }
 
 //============================================================================================================================================
+//============================================================================================================================================
 void Dialog::on_comboBox_page_currentIndexChanged(int index)
 {
     anim_page = index;
 }
 
 //============================================================================================================================================
+//============================================================================================================================================
 void  Dialog::slotDataOnStdout()
 {
     ui->textEdit_Log->append(QTime::currentTime().toString() + " " + m_proc->readAllStandardOutput());
+}
+
+//============================================================================================================================================
+//============================================================================================================================================
+void Dialog::on_pushButton_selectFirmwareFile_clicked()
+{
+    QString FileName = QFileDialog::getOpenFileName(0, "Открыть файл", "", "*firm*.bin");
+    datafile.setFileName(FileName);
+
+    if ( !FileName.isEmpty())
+    {
+        ui->lineEdit_selectFirmwareFile->setText(FileName);
+
+        ui->label_SerialPort->setVisible(true);
+        ui->comboBox_SerialPort->setVisible(true);
+        ui->pushButton_Flash->setVisible(true);
+    }
+    else
+    {
+        ui->textEdit_Log->append(QTime::currentTime().toString() + " Файл не выбран");
+
+        ui->lineEdit_selectFirmwareFile->clear();
+    }
+}
+
+//============================================================================================================================================
+//============================================================================================================================================
+void Dialog::on_pushButton_selectFSFile_clicked()
+{
+    QString FileName = QFileDialog::getOpenFileName(0, "Открыть файл", "", "*fs*.bin");
+
+    if ( !FileName.isEmpty())
+    {
+        ui->lineEdit_selectFSFile->setText(FileName);
+
+        ui->label_SerialPort->setVisible(true);
+        ui->comboBox_SerialPort->setVisible(true);
+        ui->pushButton_Flash->setVisible(true);
+    }
+    else
+    {
+        ui->textEdit_Log->append(QTime::currentTime().toString()+" Файл не выбран");
+
+        ui->lineEdit_selectFSFile->clear();
+    }
 }
 
 //============================================================================================================================================

@@ -26,7 +26,7 @@ public:
     ~Dialog();
 
 private slots:
-    void on_pushButton_selectFile_clicked();
+    void on_pushButton_selectSkinFile_clicked();
     void slotUpdateDateTime();
 
     void on_pushButton_Flash_clicked();
@@ -34,6 +34,12 @@ private slots:
     void on_comboBox_page_currentIndexChanged(int index);
 
     void slotDataOnStdout();
+
+
+
+    void on_pushButton_selectFirmwareFile_clicked();
+
+    void on_pushButton_selectFSFile_clicked();
 
 private:
     Ui::Dialog *ui;
